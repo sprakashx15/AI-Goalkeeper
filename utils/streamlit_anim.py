@@ -1,3 +1,10 @@
+import os
+import base64
+
+def get_base64_image(image_path):
+    with open(image_path, "rb") as img_file:
+        return base64.b64encode(img_file.read()).decode()
+
 def get_animation_html(shot_cell: int, keeper_cell: int, outcome: str) -> str:
     """
     Generates an HTML snippet that animates a penalty kick.
@@ -20,6 +27,15 @@ def get_animation_html(shot_cell: int, keeper_cell: int, outcome: str) -> str:
 
     ball_color = "#2ecc71" if outcome == "goal" else ("#e74c3c" if outcome == "save" else "#95a5a6")
     msg = "GOAL!" if outcome == "goal" else ("SAVE!" if outcome == "save" else "MISS!")
+
+    # Check for custom keeper image
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    img_path = os.path.join(current_dir, "keeper.png")
+    if os.path.exists(img_path):
+        encoded_string = get_base64_image(img_path)
+        keeper_element = f'<img class="keeper" src="data:image/png;base64,{encoded_string}" />'
+    else:
+        keeper_element = '<div class="keeper">🧤</div>'
 
     html = f"""
     <style>
@@ -58,10 +74,8 @@ def get_animation_html(shot_cell: int, keeper_cell: int, outcome: str) -> str:
     }}
     .keeper {{
         position: absolute;
-        width: 60px;
-        height: 60px;
-        background-color: #f1c40f;
-        border-radius: 10px;
+        width: 80px;
+        height: auto;
         bottom: 15%;
         left: 50%;
         transform: translateX(-50%);
@@ -90,7 +104,7 @@ def get_animation_html(shot_cell: int, keeper_cell: int, outcome: str) -> str:
             left: {shot_left}%;
             top: {shot_top}%;
             background-color: {ball_color};
-            transform: translate(-50%, -50%) scale(0.7);
+            transform: translate(-50%, -50%) scale(1.0);
         }}
     }}
     @keyframes dive {{
@@ -98,7 +112,6 @@ def get_animation_html(shot_cell: int, keeper_cell: int, outcome: str) -> str:
             left: {keeper_left}%;
             top: {keeper_top}%;
             transform: translate(-50%, -50%) scale(1.5);
-            background-color: #e67e22;
         }}
     }}
     @keyframes fadein {{
@@ -108,7 +121,7 @@ def get_animation_html(shot_cell: int, keeper_cell: int, outcome: str) -> str:
     
     <div class="field">
         <div class="goal-post"></div>
-        <div class="keeper">🧤</div>
+        {keeper_element}
         <div class="ball"></div>
         <div class="message">{msg}</div>
     </div>

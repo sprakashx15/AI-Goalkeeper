@@ -4,49 +4,30 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from env.penalty_env import PenaltyEnv, CELL_NAMES
 from agents.q_learning import QLearningAgent
-from agents.dqn import DQNAgent, TORCH_AVAILABLE
 from utils.streamlit_anim import get_animation_html
 import os
 
 # --- Page Config ---
 st.set_page_config(page_title="RL Goalkeeper Dashboard", layout="wide", page_icon="🧤")
 
-# --- Sidebar Settings ---
-with st.sidebar:
-    st.header("Agent Settings")
-    agent_type = st.selectbox("Select Model", ["Q-Learning (Tabular)", "DQN (Neural Net)"])
-    if agent_type == "DQN (Neural Net)" and not TORCH_AVAILABLE:
-        st.error("PyTorch not installed. DQN will not work. Please install torch.")
-        st.stop()
-
 # --- Session State Initialization ---
 if 'env' not in st.session_state:
     st.session_state.env = PenaltyEnv(striker_strategy="human")
-
-def init_agent(agent_type_str):
-    if agent_type_str == "DQN (Neural Net)":
-        agent = DQNAgent(n_states=16, n_actions=15, epsilon=0.1)
-        model_path = "models/dqn.pt"
-    else:
-        agent = QLearningAgent(n_states=16, n_actions=15, epsilon=0.1)
-        model_path = "models/q_table.pkl"
     
-    if os.path.exists(model_path):
+if 'agent' not in st.session_state:
+    st.session_state.agent = QLearningAgent(n_states=16, n_actions=15, epsilon=0.1) # Small epsilon for slight exploration
+    # Load if exists
+    if os.path.exists("models/q_table.pkl"):
         try:
-            agent.load(model_path)
-            if agent_type_str == "Q-Learning (Tabular)" and agent.Q.shape != (16, 15):
-                agent.Q = np.zeros((16, 15))
-                raise ValueError("Old model shape detected.")
-            st.success(f"Loaded pre-trained {agent_type_str}!")
-        except Exception:
-            pass # Start fresh
-    return agent
-
-# Re-init agent if type changes
-if 'agent_type' not in st.session_state or st.session_state.agent_type != agent_type:
-    st.session_state.agent_type = agent_type
-    st.session_state.agent = init_agent(agent_type)
-
+            st.session_state.agent.load("models/q_table.pkl")
+            if st.session_state.agent.Q.shape != (16, 15):
+                # Reset if old model
+                st.session_state.agent.Q = np.zeros((16, 15))
+                raise ValueError("Old model shape detected, starting fresh.")
+            st.success("Loaded pre-trained Goalkeeper agent!")
+        except Exception as e:
+            st.warning("Failed to load pre-trained agent or shape mismatch. Starting fresh.")
+            
 if 'state' not in st.session_state:
     st.session_state.state = st.session_state.env.reset()
 
@@ -76,7 +57,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("⚽ Goalkeeper RL Agent Dashboard")
+st.title("⚽ Goalkeeper  Agent Dashboard")
 st.markdown("Play against an AI Goalkeeper that learns to save your penalties!")
 
 tab_play, tab_analytics, tab_train = st.tabs(["🎮 Play vs AI", "📊 Analytics", "⚙️ Train & Settings"])
@@ -108,12 +89,7 @@ with tab_play:
                         next_state, reward, done, info = env.step(action, human_shot=cell_idx)
                         
                         # Update Agent
-                        if isinstance(agent, QLearningAgent):
-                            agent.update(state, action, reward, next_state, done)
-                        else:
-                            agent.store(state, action, reward, next_state, done)
-                            agent.update()
-                            agent.end_episode()
+                        agent.update(state, action, reward, next_state, done)
                         
                         # Save logs
                         outcome = info["outcome"]
@@ -156,18 +132,6 @@ with tab_play:
 # --- TAB: ANALYTICS ---
 with tab_analytics:
     st.subheader("Session Analytics")
-    
-    if 'train_rates' in st.session_state:
-        st.markdown("#### Latest Auto-Training Performance")
-        fig3, ax3 = plt.subplots(figsize=(10, 3))
-        ax3.plot(np.arange(1, len(st.session_state.train_rates)+1)*100, st.session_state.train_rates, marker='o', color='#3498db')
-        ax3.set_xlabel("Episode")
-        ax3.set_ylabel("Save Rate")
-        ax3.set_title("Agent Learning Curve (Per 100 Episodes)")
-        ax3.grid(True, alpha=0.3)
-        st.pyplot(fig3)
-        st.divider()
-
     if len(st.session_state.shot_log) == 0:
         st.info("Play some rounds to see analytics!")
     else:
@@ -209,60 +173,21 @@ with tab_train:
     st.subheader("Auto-Train the AI Goalkeeper")
     st.write("You can fast-track the Goalkeeper's learning by training it against an automated Striker profile.")
     
-    c1, c2 = st.columns(2)
-    with c1:
-        striker_profile = st.selectbox("Striker Profile", ["corners", "center", "random"])
-        train_eps = st.number_input("Training Episodes", min_value=100, max_value=10000, value=1000, step=100)
-    with c2:
-        st.markdown("#### Hyperparameters")
-        learning_rate = st.slider("Learning Rate", 0.001, 0.5, 0.1 if agent_type=="Q-Learning (Tabular)" else 0.001, format="%.3f")
-        gamma = st.slider("Gamma (Discount)", 0.5, 0.99, 0.9)
-        epsilon_decay = st.slider("Epsilon Decay", 0.9, 0.999, 0.995, format="%.3f")
+    striker_profile = st.selectbox("Striker Profile", ["corners", "center", "random"])
+    train_eps = st.number_input("Training Episodes", min_value=100, max_value=10000, value=1000, step=100)
     
     if st.button("Start Training"):
-        with st.spinner(f"Training {agent_type} against '{striker_profile}' striker for {train_eps} episodes..."):
+        with st.spinner(f"Training AI Goalkeeper against '{striker_profile}' striker for {train_eps} episodes..."):
             train_env = PenaltyEnv(striker_strategy=striker_profile, miss_prob=0.05)
             agent = st.session_state.agent
-            
-            # Apply hyperparams
-            if isinstance(agent, QLearningAgent):
-                agent.lr = learning_rate
-                agent.gamma = gamma
-            else:
-                for param_group in agent.optimizer.param_groups:
-                    param_group['lr'] = learning_rate
-                agent.gamma = gamma
-                
             agent.epsilon = 1.0 # boost exploration for training
-            agent.epsilon_decay = epsilon_decay
             
-            save_rate_history = []
-            saves = 0
-            
-            for ep in range(train_eps):
+            for _ in range(train_eps):
                 s = train_env.reset()
                 a = agent.select_action(s)
                 ns, r, d, i = train_env.step(a)
-                
-                if isinstance(agent, QLearningAgent):
-                    agent.update(s, a, r, ns, d)
-                else:
-                    agent.store(s, a, r, ns, d)
-                    agent.update()
-                    agent.end_episode()
-                    
+                agent.update(s, a, r, ns, d)
                 agent.decay_epsilon()
                 
-                if r > 0: saves += 1
-                if (ep + 1) % 100 == 0:
-                    save_rate_history.append(saves / 100.0)
-                    saves = 0
-                
-            if isinstance(agent, QLearningAgent):
-                agent.save("models/q_table.pkl")
-            else:
-                agent.save("models/dqn.pt")
-                
-            st.session_state.train_rates = save_rate_history
-            
-        st.success("Training Complete! The Goalkeeper is now smarter. Check the Analytics tab for the learning curve!")
+            agent.save("models/q_table.pkl")
+        st.success("Training Complete! The Goalkeeper is now smarter. Go play against it!")
