@@ -75,7 +75,6 @@ Open:
 `http://localhost:8501`
 
 ## 📸 Screenshots
-*Add your project screenshots here.*
 
 **Gameplay**  
 ![Gameplay Screenshot](assets/gameplay.png)
@@ -116,11 +115,6 @@ This project is licensed under the MIT License.
 - GitHub: [sprakashx15](https://github.com/sprakashx15)
 - LinkedIn: [Shubham Prakash](https://www.linkedin.com/in/shubham-prakash-91305930a/)
 
-## 🌟 Acknowledgements
-Special thanks to:
-- Streamlit
-- PyTorch
-- NumPy
 
 ## ⭐ Support
 If you like this project, give it a ⭐ on GitHub!
