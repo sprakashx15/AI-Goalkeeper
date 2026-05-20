@@ -78,10 +78,10 @@ Open:
 *Add your project screenshots here.*
 
 **Gameplay**  
-*(Insert Gameplay Screenshot)*
+![Gameplay Screenshot](assets/gameplay.png)
 
 **Analytics Dashboard**  
-*(Insert Analytics Screenshot)*
+![Analytics Dashboard Screenshot](assets/analysis_dashboard.png)
 
 ## 🔥 Future Enhancements
 - Multiplayer mode (User vs User)
@@ -114,6 +114,7 @@ This project is licensed under the MIT License.
 ## 👨💻 Author
 **sprakashx15**
 - GitHub: [sprakashx15](https://github.com/sprakashx15)
+- LinkedIn: [Shubham Prakash](https://www.linkedin.com/in/shubham-prakash-91305930a/)
 
 ## 🌟 Acknowledgements
 Special thanks to:
